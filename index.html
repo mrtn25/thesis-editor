@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Thesis Editor</title>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">Thesis Editor</div>
+      <label class="btn">
+        .docx öffnen
+        <input id="file" type="file" accept=".docx" hidden />
+      </label>
+      <button id="sample" class="btn" hidden>Beispiel laden</button>
+      <button id="analyze" class="btn primary" disabled>Analysieren</button>
+      <div class="views-wrap">
+        <span class="views-label">Text einfärben nach:</span>
+        <div class="views" role="tablist" aria-label="Text einfärben nach">
+          <button data-view="sections" class="on" title="Zu welchem Teil der Arbeit gehört jeder Satz? (Einleitung, Methodik …)">Abschnitt</button>
+          <button data-view="moves" title="Welchen Schritt macht der Satz innerhalb seines Abschnitts? (z. B. Hinführung → Lücke → Forschungsfrage)">Schritt</button>
+          <button data-view="roles" title="Welche Rolle hat der Satz im Argument? (Behauptung, Beleg, Begründung …)">Argument-Rolle</button>
+          <button data-view="off" title="Keine Farben">Aus</button>
+        </div>
+      </div>
+      <span id="status" class="status"></span>
+      <button id="export" class="btn" disabled>.docx speichern</button>
+    </header>
+    <div id="toolbar" class="toolbar"></div>
+    <main class="layout">
+      <section class="editor-wrap"><div id="editor"></div></section>
+      <aside class="side">
+        <nav class="tabs">
+          <button data-tab="outline" class="on">Gliederung</button>
+          <button data-tab="coherence">Kohärenz</button>
+          <button data-tab="phrases">Satzanfänge</button>
+          <button data-tab="rewrite">Umschreiben</button>
+          <button data-tab="log">KI-Protokoll</button>
+        </nav>
+        <div id="legend" class="legend"></div>
+        <div id="panel" class="panel"></div>
+      </aside>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
