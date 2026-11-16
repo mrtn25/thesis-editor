@@ -20,19 +20,26 @@ Ein Word-Editor im Browser für Abschlussarbeiten. Er öffnet und speichert echt
 
 Ohne API-Key läuft eine einfache Heuristik (Abschnitte nach Überschriften, Rollen nach Signalwörtern). Kohärenz-Check, Schritte und Umschreiben brauchen Claude.
 
+## Eigener API-Key
+
+Jede Person nutzt ihren eigenen Anthropic-API-Key (Button „Claude-Key“ oben rechts). Der Key bleibt im Browser und geht nur direkt an `api.anthropic.com`; die App hat keinen eigenen Server. Abgerechnet wird über das Anthropic-Konto der Person. Einen Key gibt es auf [console.anthropic.com](https://console.anthropic.com/settings/keys).
+
 ## Installation
 
-Voraussetzung: [Node.js](https://nodejs.org) 20 oder neuer und ein API-Key von [console.anthropic.com](https://console.anthropic.com).
+Online: einfach die gehostete Version öffnen, Key eintragen, `.docx` laden.
+
+Lokal, mit [Node.js](https://nodejs.org) 20 oder neuer:
 
 ```bash
 git clone https://github.com/mrtn25/thesis-editor.git
 cd thesis-editor
 npm install
-cp .env.example .env    # ANTHROPIC_API_KEY=sk-ant-… eintragen
 npm run dev
 ```
 
-Dann <http://localhost:5180> öffnen, eine `.docx` laden und „Analysieren“ klicken.
+Dann <http://localhost:5180> öffnen, Claude-Key eintragen, eine `.docx` laden und „Analysieren“ klicken.
+
+Selbst hosten: Die App ist eine statische Seite (`npm run build` → `dist/`). Auf Vercel reicht „Import Git Repository“, das Framework (Vite) wird erkannt.
 
 ## Kosten
 
@@ -48,13 +55,13 @@ Ergebnisse werden pro Datei im Browser gespeichert und beim nächsten Öffnen oh
 
 ## Datenschutz
 
-Beim Analysieren und Umschreiben wird der Text an die Anthropic API geschickt. Die Quellensuche schickt nur den betreffenden Satz an OpenAlex. Dokumente, Analysen und Protokoll bleiben sonst lokal (Browser-Speicher).
+Beim Analysieren und Umschreiben schickt der Browser den Text direkt an die Anthropic API. Die Quellensuche schickt nur den betreffenden Satz an OpenAlex. Dokumente, Analysen und Protokoll bleiben sonst lokal (Browser-Speicher).
 
 ## Aufbau
 
 - `src/main.ts`: Oberfläche, SuperDoc, Farb-Layer (render-only über `ctx.visuals.highlight`)
 - `src/shared.ts`: Abschnitte, Schritte, Satzanfänge, Heuristik
-- `server/index.ts`: Express-API: `/api/analyze`, `/api/coherence`, `/api/rewrite` (Claude, Structured Outputs), `/api/evidence` (OpenAlex)
+- `src/claude.ts`: Claude-Aufrufe aus dem Browser (Analyse, Kohärenz, Umschreiben; Structured Outputs) und Quellensuche über OpenAlex
 
 ## Lizenz
 
