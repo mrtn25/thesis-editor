@@ -25,7 +25,25 @@
       </div>
       <span id="status" class="status"></span>
       <button id="export" class="btn" disabled>.docx speichern</button>
+      <button id="key-btn" class="btn">Claude-Key</button>
     </header>
+    <dialog id="key-dialog" class="dialog">
+      <form id="key-form" method="dialog">
+        <h3>Claude-Key</h3>
+        <p class="muted">Für Analyse, Kohärenz-Check und Umschreiben brauchst du einen eigenen API-Key von
+          <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>
+          (dort „Woanders“ / API-Key wählen und Guthaben aufladen). Abgerechnet wird über dein Anthropic-Konto.</p>
+        <input id="key-input" type="password" placeholder="sk-ant-…" autocomplete="off" spellcheck="false" />
+        <label class="check"><input id="key-remember" type="checkbox" checked /> In diesem Browser merken</label>
+        <p class="muted small">Der Key bleibt in deinem Browser und geht nur direkt an api.anthropic.com – nie an einen anderen Server.</p>
+        <p id="key-error" class="miss"></p>
+        <div class="row">
+          <button class="btn primary" value="save">Speichern</button>
+          <button class="btn" value="cancel" formnovalidate>Abbrechen</button>
+          <button class="link" value="remove" formnovalidate>Key entfernen</button>
+        </div>
+      </form>
+    </dialog>
     <div id="toolbar" class="toolbar"></div>
     <main class="layout">
       <section class="editor-wrap"><div id="editor"></div></section>

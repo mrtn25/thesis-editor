@@ -11,6 +11,9 @@ import {
   type SectionDef,
   type Sentence,
 } from './shared';
+import * as claude from './claude';
+
+const hasClaude = () => Boolean(claude.getKey());
 
 type View = 'sections' | 'moves' | 'roles' | 'off';
 type Tab = 'outline' | 'coherence' | 'phrases' | 'rewrite' | 'log';
@@ -82,7 +85,6 @@ const state = {
   tab: 'outline' as Tab,
   sections: store.get<SectionDef[]>(SECTIONS_KEY, structuredClone(DEFAULT_SECTIONS)),
   log: store.get<LogEntry[]>('te.log', []),
-  claude: false,
   rewrite: null as null | { text: string; target: unknown; result?: { rewritten: string; notes: string }; mode?: string; busy?: boolean; error?: string },
   focusSid: null as string | null,
   /** Set when the analysis was restored from this browser's storage instead of freshly computed. */
@@ -314,19 +316,13 @@ async function analyze() {
   const btn = $('#analyze') as HTMLButtonElement;
   btn.disabled = true;
   try {
-    if (state.claude) {
+    if (hasClaude()) {
       setStatus('Claude ordnet Sätze zu Abschnitten, Moves und Argumenten … (1–3 Min.)');
-      const r = await fetch('/api/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sentences: state.sentences.map(({ sid, text, blockId }) => ({ sid, text, blockType: state.headings.has(blockId) ? 'heading' : 'text' })),
-          sections: state.sections.map((s) => ({ name: s.name, moves: s.moves.map((m) => m.name) })),
-        }),
-      });
-      const data = await r.json();
-      if (!r.ok) throw new Error(data.error ?? r.statusText);
-      state.analysis = data;
+      const { data, cost } = await claude.analyze(
+        state.sentences.map(({ sid, text, blockId }) => ({ sid, text, heading: state.headings.has(blockId) })),
+        state.sections.map((s) => ({ name: s.name, moves: s.moves.map((m) => m.name) })),
+      );
+      state.analysis = { source: 'claude', ...data, cost } as Analysis;
     } else {
       setStatus('Ohne Claude: einfache Heuristik …');
       state.analysis = heuristicAnalysis(state.sentences, state.sections, state.headings);
@@ -341,7 +337,7 @@ async function analyze() {
     const src = state.analysis!.source === 'claude' ? 'Claude' : 'Heuristik (ohne Claude)';
     setStatus(`Analyse: ${src} · ${state.targets.size}/${state.sentences.length} Sätze markiert${costNote}`);
   } catch (e) {
-    setStatus(`Fehler: ${e instanceof Error ? e.message : e}`);
+    setStatus(`Fehler: ${claude.explain(e)}`);
   } finally {
     btn.disabled = false;
     render();
@@ -406,7 +402,7 @@ function offlineCoherence(): Coherence {
 
 async function checkCoherence() {
   if (!state.analysis) return setStatus('Erst „Analysieren“ klicken.');
-  if (!state.claude) {
+  if (!hasClaude()) {
     state.coherence = offlineCoherence();
     return render();
   }
@@ -415,18 +411,14 @@ async function checkCoherence() {
   setStatus('Claude prüft Kohärenz … (1–3 Min.)');
   const map = blockSections();
   try {
-    const r = await fetch('/api/coherence', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ blocks: state.blocks.filter((b) => map.get(b.id) !== 'References').map((b) => ({ id: b.id, section: map.get(b.id) ?? '', text: b.text })) }),
-    });
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.error ?? r.statusText);
+    const { data, cost } = await claude.coherence(
+      state.blocks.filter((b) => map.get(b.id) !== 'References').map((b) => ({ id: b.id, section: map.get(b.id) ?? '', text: b.text })),
+    );
     state.coherence = { source: 'claude', ...data };
     saveCache();
-    setStatus(`Kohärenz geprüft${track(data.cost)}`);
+    setStatus(`Kohärenz geprüft${track(cost)}`);
   } catch (e) {
-    setStatus(`Fehler: ${e instanceof Error ? e.message : e}`);
+    setStatus(`Fehler: ${claude.explain(e)}`);
   } finally {
     state.coherenceBusy = false;
     render();
@@ -572,7 +564,7 @@ const MODE_LABELS: Record<string, string> = {
 
 function renderRewrite(): string {
   const r = state.rewrite;
-  if (!state.claude) return '<p class="muted">Umschreiben braucht Claude. Lege in <code>~/thesis-editor/.env</code> einen <code>ANTHROPIC_API_KEY</code> an und starte neu.</p>';
+  if (!hasClaude()) return '<p class="muted">Umschreiben braucht Claude. Trag oben unter <button class="link" id="open-key">Claude-Key</button> deinen API-Key ein.</p>';
   return `<p class="muted">Text im Dokument markieren, dann übernehmen. Claude behält Inhalt, Zitate und deinen Ton. Übernommene Vorschläge landen als <strong>nachverfolgte Änderung</strong> im Dokument und im KI-Protokoll.</p>
     <button class="btn" id="grab">Markierung übernehmen</button>
     ${r ? `${r.text ? `<blockquote>${esc(r.text)}</blockquote>` : ''}
@@ -623,17 +615,11 @@ async function runRewrite(mode: string) {
   const hit = state.sentences.find((s) => r.text.includes(s.text.slice(0, 40)));
   const section = hit ? blockSections().get(hit.blockId) : undefined;
   try {
-    const resp = await fetch('/api/rewrite', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: r.text, mode, section, context: hit ? state.blocks.find((b) => b.id === hit.blockId)?.text : undefined }),
-    });
-    const data = await resp.json();
-    if (!resp.ok) throw new Error(data.error ?? resp.statusText);
+    const { data, cost } = await claude.rewrite(r.text, mode, section, hit ? state.blocks.find((b) => b.id === hit.blockId)?.text : undefined);
     r.result = data;
-    setStatus(`Vorschlag fertig${track(data.cost)}`);
+    setStatus(`Vorschlag fertig${track(cost)}`);
   } catch (e) {
-    r.error = e instanceof Error ? e.message : String(e);
+    r.error = claude.explain(e);
   } finally {
     r.busy = false;
     render();
@@ -669,12 +655,15 @@ async function acceptRewrite() {
 async function findEvidence(sid: string, box: HTMLElement) {
   const text = state.sentences.find((s) => s.sid === sid)?.text ?? '';
   box.innerHTML = '<p class="muted">Suche …</p>';
-  const r = await fetch(`/api/evidence?q=${encodeURIComponent(text.replace(/\([^)]*\)/g, '').slice(0, 200))}`);
-  const data = await r.json();
-  box.innerHTML = (data.results ?? [])
-    .map((w: any) => `<div class="paper"><a href="${w.doi ?? '#'}" target="_blank" rel="noopener">${esc(w.title ?? '')}</a>
-      <span class="muted">${esc((w.authors ?? []).join(', '))} · ${w.year ?? ''} · ${esc(w.venue ?? '')} · ${w.cited ?? 0}× zitiert</span></div>`)
-    .join('') || '<p class="muted">Nichts gefunden.</p>';
+  try {
+    const results = await claude.evidence(text.replace(/\([^)]*\)/g, '').slice(0, 200));
+    box.innerHTML = results
+      .map((w) => `<div class="paper"><a href="${esc(w.doi ?? '#')}" target="_blank" rel="noopener">${esc(w.title ?? '')}</a>
+        <span class="muted">${esc(w.authors.join(', '))} · ${w.year ?? ''} · ${esc(w.venue ?? '')} · ${w.cited ?? 0}× zitiert</span></div>`)
+      .join('') || '<p class="muted">Nichts gefunden.</p>';
+  } catch (e) {
+    box.innerHTML = `<p class="miss">${esc(claude.explain(e))}</p>`;
+  }
 }
 
 // ---------- Wiring ----------
@@ -803,14 +792,49 @@ $('#editor').addEventListener('click', (e) => {
   paint();
 });
 
-(async () => {
-  try {
-    const s = await (await fetch('/api/status')).json();
-    state.claude = s.claude;
-    ($('#sample') as HTMLButtonElement).hidden = !s.sample;
-    setStatus(s.claude ? `Claude verbunden (${s.model})` : 'Ohne Claude-Key: Analyse nur per Heuristik');
-  } catch {
-    setStatus('API-Server nicht erreichbar');
+// ---------- Claude key dialog ----------
+
+function keyStatus() {
+  const btn = $('#key-btn');
+  btn.textContent = hasClaude() ? 'Claude-Key ✓' : 'Claude-Key eintragen';
+  btn.classList.toggle('primary', !hasClaude());
+  setStatus(hasClaude() ? `Claude verbunden (${claude.MODEL})` : 'Ohne Claude-Key: Analyse nur per Heuristik');
+}
+
+function openKeyDialog() {
+  const dlg = $('#key-dialog') as HTMLDialogElement;
+  ($('#key-input') as HTMLInputElement).value = claude.getKey();
+  $('#key-error').textContent = '';
+  dlg.showModal();
+}
+
+$('#key-btn').addEventListener('click', openKeyDialog);
+$('#panel').addEventListener('click', (e) => {
+  if ((e.target as HTMLElement).id === 'open-key') openKeyDialog();
+});
+$('#key-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const submitter = (e as SubmitEvent).submitter as HTMLButtonElement | null;
+  const dlg = $('#key-dialog') as HTMLDialogElement;
+  if (submitter?.value === 'cancel') return dlg.close();
+  if (submitter?.value === 'remove') {
+    claude.setKey('', false);
+  } else {
+    const key = ($('#key-input') as HTMLInputElement).value.trim();
+    if (!/^sk-ant-/.test(key)) {
+      $('#key-error').textContent = 'Ein Anthropic-Key beginnt mit „sk-ant-“.';
+      return;
+    }
+    claude.setKey(key, ($('#key-remember') as HTMLInputElement).checked);
   }
+  dlg.close();
+  keyStatus();
   render();
-})();
+});
+
+// The sample button only exists in local development (see vite.config.ts).
+if (import.meta.env.DEV)
+  fetch('/api/sample', { method: 'HEAD' }).then((r) => (($('#sample') as HTMLButtonElement).hidden = !r.ok)).catch(() => {});
+
+keyStatus();
+render();
