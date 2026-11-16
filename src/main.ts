@@ -591,7 +591,7 @@ function renderLog(): string {
       <p class="before">${esc(e.before)}</p><p class="after">${esc(e.after)}</p></div>`)
     .join('');
   return `<p class="muted">Jeder KI-Vorschlag wird hier protokolliert. Daraus lässt sich die Erklärung zur KI-Nutzung für den Anhang erstellen.</p>
-    <p class="muted">API-Kosten in diesem Browser bisher: <strong>ca. ${usd(state.spend)}</strong> (Listenpreis Claude Opus 5.5; genaue Abrechnung in der Anthropic Console).</p>
+    <p class="muted">API-Kosten in diesem Browser bisher: <strong>ca. ${usd(state.spend)}</strong> (Listenpreis Claude Sonnet 5.5; genaue Abrechnung in der Anthropic Console).</p>
     <div class="row"><button class="btn" id="log-md" ${state.log.length ? '' : 'disabled'}>Als Markdown kopieren</button><button class="link" id="log-clear">Protokoll leeren</button></div>
     ${rows || '<p class="muted">Noch keine Einträge.</p>'}`;
 }

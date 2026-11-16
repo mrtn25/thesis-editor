@@ -36,13 +36,13 @@ Dann <http://localhost:5180> öffnen, eine `.docx` laden und „Analysieren“ k
 
 ## Kosten
 
-Der Editor nutzt Claude Opus 5.5 ($4 / $20 pro Million Tokens). Für eine Arbeit mit ca. 2.500 Wörtern gemessen:
+Der Editor nutzt Claude Sonnet 5.5 ($2 / $10 pro Million Tokens). Für eine Arbeit mit ca. 2.500 Wörtern (geschätzt aus einer Messung mit Opus 5.5, Sonnet kostet je Token die Hälfte):
 
 | Aktion | ca. Kosten |
 |---|---|
-| Analysieren | 0,40 $ |
-| Kohärenz prüfen | 0,30–0,60 $ |
-| Eine Passage umschreiben | < 0,05 $ |
+| Analysieren | ca. 0,20 $ |
+| Kohärenz prüfen | ca. 0,15–0,30 $ |
+| Eine Passage umschreiben | < 0,02 $ |
 
 Ergebnisse werden pro Datei im Browser gespeichert und beim nächsten Öffnen ohne neue Kosten geladen. Neu analysieren lohnt sich erst nach Textänderungen. Die Kosten jedes Laufs stehen in der Statuszeile, die Summe im Reiter „KI-Protokoll“.
 

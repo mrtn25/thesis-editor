@@ -7,14 +7,14 @@ import { z } from 'zod';
 const app = express();
 app.use(express.json({ limit: '5mb' }));
 
-const MODEL = 'claude-opus-5-5';
+const MODEL = 'claude-sonnet-5-5';
 const hasKey = Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
 const client = hasKey ? new Anthropic() : null;
 
-/** Price of one call at Claude Opus 5.5 list prices ($4 / $20 per million tokens; thinking counts as output). */
+/** Price of one call at Claude Sonnet 5.5 list prices ($2 / $10 per million tokens; thinking counts as output). */
 function cost(usage: { input_tokens: number; output_tokens: number; cache_creation_input_tokens?: number | null; cache_read_input_tokens?: number | null }) {
   const input = usage.input_tokens + (usage.cache_creation_input_tokens ?? 0) * 1.25 + (usage.cache_read_input_tokens ?? 0) * 0.1;
-  const usd = (input * 4 + usage.output_tokens * 20) / 1_000_000;
+  const usd = (input * 2 + usage.output_tokens * 10) / 1_000_000;
   console.log(`cost: ${usage.input_tokens} in / ${usage.output_tokens} out = $${usd.toFixed(3)}`);
   return { input: usage.input_tokens, output: usage.output_tokens, usd: Math.round(usd * 1000) / 1000 };
 }
